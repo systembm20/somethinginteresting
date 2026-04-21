@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>· 日 记 ·</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            user-select: none; /* 增加纸质感，但允许选中也不影响 */
+        }
+        body {
+            background: #1e1b1a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', Courier, '华文楷体', 'KaiTi', monospace;
+            padding: 16px;
+            margin: 0;
+            background-image: radial-gradient(circle at 20% 30%, #2a2523 0%, #0f0e0d 100%);
+        }
+        .game-container {
+            max-width: 700px;
+            width: 100%;
+            background: #f3efe6;
+            background: linear-gradient(145deg, #f8f3ea 0%, #e8e0d5 100%);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px #5e4b3c inset;
+            border-radius: 4px 16px 16px 4px;
+            padding: 28px 24px 32px;
+            position: relative;
+            transition: all 0.2s;
+            border-left: 12px solid #6f5e50;
+        }
+        /* 日记本装订线 */
+        .game-container::before {
+            content: "";
+            position: absolute;
+            left: 6px;
+            top: 20px;
+            bottom: 20px;
+            width: 2px;
+            background: rgba(0,0,0,0.08);
+            box-shadow: 0 0 4px #3a2e26;
+        }
+
+        h1, h2, h3 {
+            font-weight: 400;
+            letter-spacing: 2px;
+            color: #2c241e;
+            border-bottom: 1px dashed #b9a89a;
+            padding-bottom: 8px;
+            margin-bottom: 20px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .diary-content {
+            font-size: 1.2rem;
+            line-height: 1.75;
+            color: #2b1f18;
+            text-shadow: 0.5px 0.5px 0 #d9cfc4;
+            white-space: pre-wrap;
+            word-break: break-word;
+            min-height: 280px;
+        }
+
+        .diary-meta {
+            display: flex;
+            justify-content: space-between;
+            margin: 24px 0 18px;
+            color: #5f4d3e;
+            font-style: italic;
+            border-top: 1px dotted #b7a392;
+            padding-top: 16px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        button, .nav-link {
+            background: transparent;
+            border: 1.5px solid #6f5e50;
+            color: #3e2f24;
+            padding: 8px 18px;
+            font-family: inherit;
+            font-size: 1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            backdrop-filter: blur(2px);
+            background: rgba(245, 235, 220, 0.5);
+            transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: bold;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.05);
+        }
+
+        button:hover, .nav-link:hover {
+            background: #6f5e50;
+            color: #f2ebe2;
+            border-color: #4d3e33;
+        }
+
+        .hidden-trigger {
+            cursor: default;
+            border-bottom: 1px dashed #b57c5c;
+            color: #5d3f2c;
+        }
+        .hidden-trigger.clickable {
+            cursor: pointer;
+            transition: 0.1s;
+            font-weight: 600;
+        }
+        .hidden-trigger.clickable:hover {
+            background: #dac5b3;
+        }
+
+        .error-page {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .reset-area {
+            margin-top: 24px;
+            text-align: right;
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+        .reset-btn {
+            background: none;
+            border: none;
+            color: #6a5343;
+            text-decoration: underline dotted;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .cookie-debug {
+            display: none; /* 仅用于测试，普通玩家不可见，但保留meta感 */
+        }
+
+        /* 特殊氛围 */
+        .glitch {
+            font-style: normal;
+        }
+        .fade-text {
+            opacity: 0.85;
+        }
+
+        .footnote {
+            font-size: 0.85rem;
+            margin-top: 20px;
+            color: #7e6858;
+        }
+
+        /* 感人结局用 */
+        .ending {
+            font-size: 1.3rem;
+            text-align: center;
+        }
+        .quote {
+            font-style: italic;
+            border-left: 4px solid #b28162;
+            padding-left: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container" id="app">
+    <div id="view-container">
+        <!-- 动态渲染区域 -->
+    </div>
+    <div class="reset-area">
+        <button class="reset-btn" id="resetGameBtn">⟲ 重置所有记忆 (清除进度)</button>
+    </div>
+    <div class="footnote" id="metaHint"></div>
+</div>
+<script>
+    (function(){
+        "use strict";
+
+        // ----------  COOKIE 工具  ----------
+        function setCookie(name, value, days = 365) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Lax";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for(let i=0; i<ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+            }
+            return null;
+        }
+
+        function deleteCookie(name) {
+            document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        }
+
+        // 清除所有游戏相关cookie
+        function resetAllProgress() {
+            deleteCookie('diary_insight');
+            deleteCookie('echo_unlock');
+            deleteCookie('mirror_token');
+            deleteCookie('final_whisper');
+            deleteCookie('last_page');
+            // 刷新当前hash
+            window.location.hash = '#day1';
+            window.location.reload();
+        }
+
+        // ----------  页面 / 日记数据  ----------
+        // 故事: 沈知意 (女, 但可中性) 逐渐发现记忆异常, 爱人「小晚」其实已不在……
+        // 表层是日记, 诡异慢慢浮现。meta: cookie控制隐藏页面。
+
+        const pages = {
+            // 普通日记页
+            'day1': {
+                title: '📆 九月一日 · 晴',
+                content: `
+                    <p>搬进这间老房子已经三天了。木头的味道让人安心。小晚帮我一起整理书架，她说靠窗的位置最适合放那盆绿萝。</p>
+                    <p>晚上我们煮了泡面，加了很多青菜。她笑我总忘记关煤气，但每次都会帮我检查。真不知道没有她我该怎么办。</p>
+                    <p>睡前我打开这个电子日记，决定记录日常。也许某天回头看会很有趣。</p>
+                    <p><span class="hidden-trigger">—— 一切都那么平常，平常到让人困倦。</span></p>
+                `,
+                nav: { prev: null, next: 'day2' }
+            },
+            'day2': {
+                title: '📆 九月三日 · 多云',
+                content: `
+                    <p>今天工作很忙，加班到九点。小晚发来消息说留了饭菜在微波炉里。可我回到家，微波炉空空如也。</p>
+                    <p>我打电话问她，她说“明明放了呀，可能你记错了”。最近我确实总走神。</p>
+                    <p>对了，书架第二层多了一本我没见过的诗集，扉页写着“给知意”。是小晚的字迹，但我不记得她送过我。</p>
+                    <p><span class="hidden-trigger clickable" id="hint1">『不要忘记呼吸』</span> —— 书签上这样写。</p>
+                `,
+                nav: { prev: 'day1', next: 'day3' },
+                onRender: () => {
+                    // 点击“不要忘记呼吸” 设置一个暗藏cookie (whisper)
+                    const el = document.getElementById('hint1');
+                    if(el) {
+                        el.addEventListener('click', function setWhisper() {
+                            setCookie('diary_insight', 'whisper_heard', 30);
+                            // 微小反馈
+                            const metaHint = document.getElementById('metaHint');
+                            metaHint.innerHTML = '✓ 你感觉到一丝凉意……某种东西被记住了。';
+                            setTimeout(() => { metaHint.innerHTML = ''; }, 3000);
+                        }, { once: true });
+                    }
+                }
+            },
+            'day3': {
+                title: '📆 九月五日 · 阴',
+                content: `
+                    <p>小晚出差了。家里突然很安静。我翻看之前的日记，发现一件怪事——九月一日的日记里，我写的是“小晚帮我整理书架”，但我明明记得搬家那天她不在……是我记混了吗？</p>
+                    <p>下午收拾房间，在衣柜最底层发现一个铁盒，里面是一张拍立得。照片上是我和一个女孩的合影，背面写着“知意&小晚，2021 夏”。可那个女孩……我完全不认识。但她的眼睛很像小晚。</p>
+                    <p>头很痛。我拨了小晚的电话，关机。</p>
+                    <p><span class="hidden-trigger clickable" id="echoTrigger">【我究竟忘记了什么？】</span></p>
+                `,
+                nav: { prev: 'day2', next: 'day4' },
+                onRender: () => {
+                    const trigger = document.getElementById('echoTrigger');
+                    if(trigger) {
+                        trigger.addEventListener('click', () => {
+                            // 如果已有 insight cookie，再设置一个更深层的
+                            if(getCookie('diary_insight')) {
+                                setCookie('echo_unlock', 'fragment_alpha', 30);
+                                document.getElementById('metaHint').innerHTML = '⚡ 回声浮现……某个隐藏的页面或许可以访问了。';
+                            } else {
+                                document.getElementById('metaHint').innerHTML = '❓ 似乎缺少某种前提……先找到更早的线索。';
+                            }
+                            setTimeout(() => { document.getElementById('metaHint').innerHTML = ''; }, 3500);
+                        });
+                    }
+                }
+            },
+            'day4': {
+                title: '📆 九月八日 · 雨',
+                content: `
+                    <p>雨下了一整天。我盯着那张照片发呆。那个陌生女孩的项链——和我脖子上的一模一样。那是我妈留给我的，独一无二。</p>
+                    <p>小晚回来了，她看见照片时表情很奇怪。“你从哪里找到的？”她问。我说衣柜里。她沉默了很久，然后说：“那是我们刚认识的时候拍的，你以前总爱弄丢东西，连记忆也是。”</p>
+                    <p>她抱住我，我闻到她身上雨水和栀子香。但为什么……我总觉得她在哭？</p>
+                    <p><span class="hidden-trigger">有些真实，比遗忘更痛。</span></p>
+                `,
+                nav: { prev: 'day3', next: 'day5' }
+            },
+            'day5': {
+                title: '📆 九月十二日 · 雾',
+                content: `
+                    <p>日记出现了我不能理解的句子。昨天的内容被划掉了，取而代之的是一行字：“你不该看这些。”</p>
+                    <p>笔迹是我的，但我不记得写过。小晚今天没有出现。我喊她的名字，只有回声。</p>
+                    <p>我决定查看浏览器的<span class="hidden-trigger clickable" id="mirrorHint">「记录」</span>……但这里只有cookie。</p>
+                `,
+                nav: { prev: 'day4', next: 'day6' },
+                onRender: () => {
+                    document.getElementById('mirrorHint')?.addEventListener('click', ()=>{
+                        if(getCookie('echo_unlock')) {
+                            setCookie('mirror_token', 'reflect_me', 30);
+                            document.getElementById('metaHint').innerHTML = '🪞 镜面出现裂痕。你获得了「镜中人」的访问权。';
+                        } else {
+                            document.getElementById('metaHint').innerHTML = '🔒 还缺少某种共鸣……再找找别的线索。';
+                        }
+                        setTimeout(()=> document.getElementById('metaHint').innerHTML = '', 3000);
+                    });
+                }
+            },
+            'day6': {
+                title: '📆 九月十五日 · ？',
+                content: `
+                    <p>日期开始模糊。我分不清今天是几号。小晚坐在窗边，阳光穿过她却没留下影子。我问她为什么，她只是微笑。</p>
+                    <p>“知意，你该想起来了。我在两年前的今天，为了推开你，被那辆车……” 我捂住耳朵。不对，不对！</p>
+                    <p>书架上的诗集自动翻到了某一页：<em>“我留在这里，是因为你还在呼唤我。”</em></p>
+                    <p>我冲向电脑，发现了一个从未见过的页面链接……</p>
+                `,
+                nav: { prev: 'day5', next: 'day7' }
+            },
+            'day7': {
+                title: '📆 九月 · 终章之前',
+                content: `
+                    <p>我全都想起来了。小晚已经不在了。这两年我活在自我编织的日记里，而这个网页……是我为自己做的牢笼。</p>
+                    <p>但还有最后一个地方，需要完整的“记忆凭证”。</p>
+                    <p>如果你已经收集了回声、镜中人，或许可以打开那扇门。</p>
+                    <p><span class="hidden-trigger clickable" id="finalHint">【拥抱真实】</span></p>
+                `,
+                nav: { prev: 'day6', next: null },
+                onRender: () => {
+                    document.getElementById('finalHint')?.addEventListener('click', ()=>{
+                        if(getCookie('mirror_token') && getCookie('echo_unlock')) {
+                            setCookie('final_whisper', 'let_go', 30);
+                            document.getElementById('metaHint').innerHTML = '✨ 最后的门已经打开。';
+                            // 可以跳转
+                            if(confirm('前往最终的真相？')) {
+                                window.location.hash = '#acceptance';
+                            }
+                        } else {
+                            alert('还缺少重要的记忆碎片……回声与镜中人缺一不可。');
+                        }
+                    });
+                }
+            },
+
+            // ---------- 特殊页面（需要cookie验证）--------
+            'echo': {
+                title: '🌫️ 回声 · 隐匿页',
+                requireCookie: { name: 'echo_unlock', value: 'fragment_alpha' },
+                content: `
+                    <p>你听到了吗？那是小晚最后的声音。</p>
+                    <p>“知意，别回头。好好活下去。”</p>
+                    <p>这个页面原本被封锁，因为你触碰了那个问题。我把一部分记忆藏在这里。她走的那天也是雨天。你崩溃地格式化了一切，却用代码留下了这个日记。</p>
+                    <p>—— 系统记录：用户“知意”创建此日记以逃避创伤。但爱无法被删除。</p>
+                    <div class="quote">“我存在，因为你的思念。”</div>
+                `,
+                nav: { prev: null, next: null, back: 'day5' }
+            },
+            'mirror': {
+                title: '🪞 镜中人',
+                requireCookie: { name: 'mirror_token', value: 'reflect_me' },
+                content: `
+                    <p>镜子里的人不是我。是那个忘记了一切的自己。</p>
+                    <p>但小晚的脸慢慢清晰。她握着我的手说：“我在你的记忆里活过，已经很幸福了。但你不该困在这里。”</p>
+                    <p>我泪流满面。这个页面需要cookie才能看到——正如你需要穿越悲伤才能触碰真实。</p>
+                    <p><em>“我原谅你了，知意。也请你原谅自己。”</em></p>
+                `,
+                nav: { prev: null, next: null, back: 'day6' }
+            },
+            'acceptance': {
+                title: '🕊️ 最后的一页',
+                requireCookie: { name: 'final_whisper', value: 'let_go' },
+                content: `
+                    <div class="ending">
+                        <p>窗外的雨停了。</p>
+                        <p>我删掉了那个重复的日记程序。但留下了这一页。</p>
+                        <p>小晚，我不再把你关在字节里了。你永远是我的一部分，自由地活在每个有阳光的早晨。</p>
+                        <p>—— 知意，于新生。</p>
+                        <p style="margin-top: 40px;">✨ 感谢你陪我走过这段旅程。<br>有些告别，是为了更好地记得。</p>
+                    </div>
+                `,
+                nav: { prev: null, next: null }
+            },
+            '404': {
+                title: '📄 页面不存在 · 或是你不该在这里',
+                content: `<p>这个页面被迷雾笼罩。或许你没有获得相应的「记忆凭证」。</p><p>某些页面需要先浏览特定的日记，并点击隐藏的线索…… cookie会记录你的发现。</p>`,
+                nav: { back: 'day1' }
+            }
+        };
+
+        // 默认首页
+        const DEFAULT_HASH = 'day1';
+
+        // 渲染函数
+        function renderPage(hash) {
+            const container = document.getElementById('view-container');
+            const metaHint = document.getElementById('metaHint');
+            metaHint.innerHTML = ''; 
+
+            // 去掉# ，若为空则默认
+            let pageId = hash.replace(/^#/, '');
+            if (!pageId || !pages[pageId]) {
+                pageId = DEFAULT_HASH;
+                window.location.hash = pageId;
+            }
+
+            const page = pages[pageId];
+            if (!page) {
+                // fallback
+                container.innerHTML = `<h2>错误</h2><p>未知页面</p>`;
+                return;
+            }
+
+            // 特殊页面cookie验证 (对于requireCookie)
+            if (page.requireCookie) {
+                const req = page.requireCookie;
+                const cookieVal = getCookie(req.name);
+                if (cookieVal !== req.value) {
+                    // 没有权限 -> 显示404风格但保留信息
+                    container.innerHTML = `
+                        <h2>🚫 访问受限</h2>
+                        <div class="error-page">
+                            <p>这个页面需要特定的「记忆凭证」。<br>你尚未获得，或是cookie丢失了。</p>
+                            <p>继续探索日记，寻找隐藏的点击……</p>
+                            <button class="nav-link" onclick="window.location.hash='day1'">返回日记</button>
+                        </div>
+                    `;
+                    // 不执行后续渲染
+                    return;
+                }
+            }
+
+            // 构建内容
+            let html = `<h2>${page.title}</h2>`;
+            html += `<div class="diary-content">${page.content}</div>`;
+
+            // 元数据区
+            html += `<div class="diary-meta">`;
+            if (page.nav) {
+                html += `<span>${pageId.startsWith('day') ? '📖 日记' : '🔍 隐秘'}</span>`;
+            } else {
+                html += `<span> </span>`;
+            }
+            html += `</div>`;
+
+            // 导航按钮
+            html += `<div class="nav-buttons">`;
+            if (page.nav) {
+                if (page.nav.prev) {
+                    html += `<button class="nav-link" onclick="window.location.hash='${page.nav.prev}'">← 前一天</button>`;
+                } else if (page.nav.back) {
+                    html += `<button class="nav-link" onclick="window.location.hash='${page.nav.back}'">← 返回</button>`;
+                } else {
+                    html += `<span></span>`;
+                }
+
+                if (page.nav.next) {
+                    html += `<button class="nav-link" onclick="window.location.hash='${page.nav.next}'">后一天 →</button>`;
+                } else if (pageId === 'day7') {
+                    // 特殊: 如果有final_whisper可去结局
+                    if(getCookie('final_whisper') === 'let_go') {
+                        html += `<button class="nav-link" onclick="window.location.hash='acceptance'">前往结局</button>`;
+                    } else {
+                        html += `<button class="nav-link" disabled style="opacity:0.5;">🔒 结局未解锁</button>`;
+                    }
+                } else {
+                    html += `<span></span>`;
+                }
+            } else {
+                // 结局页面等
+                html += `<button class="nav-link" onclick="window.location.hash='day1'">回到最初</button>`;
+                html += `<button class="nav-link" onclick="window.location.hash='day7'">回忆终章</button>`;
+            }
+            html += `</div>`;
+
+            // 添加一个隐秘入口：如果玩家获得echo_unlock，显示前往回声页的链接
+            if (pageId.startsWith('day') && getCookie('echo_unlock') === 'fragment_alpha') {
+                html += `<div style="margin-top:16px; text-align:right;"><button class="nav-link" style="font-size:0.9rem;" onclick="window.location.hash='echo'">🌫️ 进入回声</button></div>`;
+            }
+            if (pageId.startsWith('day') && getCookie('mirror_token') === 'reflect_me') {
+                html += `<div style="margin-top:8px; text-align:right;"><button class="nav-link" style="font-size:0.9rem;" onclick="window.location.hash='mirror'">🪞 进入镜中</button></div>`;
+            }
+
+            container.innerHTML = html;
+
+            // 执行页面特定的onRender (绑定点击等)
+            if (typeof page.onRender === 'function') {
+                page.onRender();
+            }
+
+            // 保存最后访问页面 (非必须)
+            setCookie('last_page', pageId, 7);
+        }
+
+        // 监听hash变化
+        function handleHashChange() {
+            renderPage(window.location.hash || '#day1');
+        }
+
+        window.addEventListener('hashchange', handleHashChange);
+        window.addEventListener('load', ()=>{
+            // 如果没有任何进度，可以重置？不用，保留cookie。
+            // 但若第一次访问，自动day1
+            if (!window.location.hash) {
+                window.location.hash = DEFAULT_HASH;
+            } else {
+                handleHashChange();
+            }
+            // 重置按钮
+            document.getElementById('resetGameBtn').addEventListener('click', ()=>{
+                if(confirm('确定重置所有进度？这将清除cookie，一切重新开始。')) {
+                    resetAllProgress();
+                }
+            });
+        });
+
+        // 额外: 全局函数供onclick调用
+        window.resetAllProgress = resetAllProgress;
+        // 暴露给行内
+        window.getCookie = getCookie;
+        
+        // 初次渲染
+        if (window.location.hash) handleHashChange();
+        else window.location.hash = DEFAULT_HASH;
+
+        // meta小彩蛋: 控制台输出
+        console.log('%c🕯️ 你凝视着深渊…… 某些页面需要cookie。', 'font-size:16px; color: #b78c6a');
+        console.log('%c试着点击日记中与众不同的词句。', 'font-size:14px; color: #9e7b64');
+    })();
+</script>
+<!-- 确保所有行内onclick可以调用全局函数 -->
+</body>
+</html>
