@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>维尔德博物馆 · 线上馆藏</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #f3efe8;
+      font-family: 'Times New Roman', '宋体', 'Songti SC', serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      transition: background-color 0.25s ease, filter 0.2s;
+    }
+
+    /* 诡异状态 —— 由JS动态添加类名 */
+    body.insanity-1 { background: #d6d2c5; }
+    body.insanity-2 { background: #b8b2a2; }
+    body.insanity-3 { background: #8f8878; }
+    body.insanity-4 { background: #5e584a; color: #e6e0d4; }
+    body.insanity-5 { background: #2e2a24; color: #cfc3b2; font-family: 'Courier New', monospace; }
+    body.insanity-6 { background: #1a1512; color: #b89f8a; }
+    body.insanity-7 { background: #0c0908; color: #a57c6e; }
+    body.insanity-8 { background: #050303; color: #8b5e4b; filter: blur(0.3px); }
+    body.insanity-9 { background: #020101; color: #7a4d3a; filter: blur(0.6px) brightness(0.9); }
+    body.insanity-10 { background: #000000; color: #6e3f2e; filter: blur(0.9px) brightness(0.7) contrast(1.5); }
+
+    body.insanity-6 .card,
+    body.insanity-7 .card,
+    body.insanity-8 .card,
+    body.insanity-9 .card,
+    body.insanity-10 .card {
+      border-color: #5f3e2e;
+      box-shadow: 0 0 12px rgba(100, 30, 10, 0.5);
+    }
+
+    body.insanity-8 .glitch-text,
+    body.insanity-9 .glitch-text,
+    body.insanity-10 .glitch-text {
+      animation: glitch 0.3s infinite;
+    }
+
+    @keyframes glitch {
+      0% { transform: skew(0deg, 0deg); opacity: 1; }
+      20% { transform: skew(2deg, 0.5deg); opacity: 0.9; text-shadow: 2px 0 red, -2px 0 blue; }
+      40% { transform: skew(-2deg, -0.3deg); opacity: 1; }
+      60% { transform: skew(1deg, 0.2deg); text-shadow: -1px 0 cyan, 1px 0 magenta; }
+      80% { transform: skew(0deg, 0deg); }
+      100% { transform: skew(0deg, 0deg); }
+    }
+
+    .museum-card {
+      max-width: 750px;
+      width: 100%;
+      background: rgba(250, 245, 235, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 28px 24px;
+      border-radius: 2px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+      border: 1px solid #dacbb8;
+      transition: all 0.25s;
+    }
+
+    body.insanity-4 .museum-card { background: rgba(40, 35, 30, 0.8); border-color: #7a624b; }
+    body.insanity-6 .museum-card { background: rgba(20, 15, 12, 0.9); }
+    body.insanity-8 .museum-card { background: rgba(8, 5, 3, 0.95); border-color: #4a2e1e; }
+
+    h1 {
+      font-weight: 400;
+      letter-spacing: 6px;
+      font-size: 2.4rem;
+      text-align: center;
+      border-bottom: 1px solid #b9a58c;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .subhead {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 18px;
+      font-style: italic;
+    }
+
+    .missing-alert {
+      background: #e9ddd2;
+      padding: 12px 16px;
+      border-left: 6px solid #7a3e2a;
+      margin-bottom: 24px;
+      font-size: 0.98rem;
+      transition: 0.2s;
+    }
+
+    body.insanity-5 .missing-alert { background: #2f241c; border-left-color: #b15533; }
+    body.insanity-7 .missing-alert { border-left-color: #a13d1a; box-shadow: inset 0 0 10px #3a1e12; }
+
+    .search-area {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .search-area input {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 1.1rem;
+      background: #fefcf9;
+      border: 1px solid #bfaa96;
+      font-family: inherit;
+      border-radius: 0;
+      outline: none;
+      transition: 0.15s;
+    }
+
+    .search-area input:focus {
+      border-color: #5f4e3c;
+      box-shadow: 0 0 0 2px rgba(90, 60, 40, 0.2);
+    }
+
+    .search-area button {
+      padding: 0 24px;
+      background: #4d3e2e;
+      border: none;
+      color: #efe6db;
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 0;
+      transition: 0.15s;
+      border: 1px solid #2f241c;
+    }
+
+    .search-area button:hover {
+      background: #2f241c;
+    }
+
+    .insanity-meter {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .meter-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .meter-bar {
+      height: 8px;
+      flex: 1;
+      background: #c9bbaa;
+      border-radius: 0;
+    }
+
+    .meter-fill {
+      width: 0%;
+      height: 100%;
+      background: #3e2c1c;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    body.insanity-5 .meter-fill { background: #7a3e2a; }
+    body.insanity-8 .meter-fill { background: #a04020; box-shadow: 0 0 6px #b33; }
+
+    .result-card {
+      min-height: 160px;
+      background: rgba(255, 250, 240, 0.7);
+      padding: 22px 20px;
+      border: 1px solid #cdbcab;
+      margin: 10px 0 22px;
+      transition: 0.2s;
+    }
+
+    .result-title {
+      font-size: 1.7rem;
+      margin-bottom: 14px;
+      font-weight: 400;
+      border-bottom: 1px dashed #ac9a88;
+      padding-bottom: 6px;
+    }
+
+    .result-desc {
+      line-height: 1.6;
+      font-size: 1.05rem;
+    }
+
+    .secret-note {
+      margin-top: 16px;
+      font-style: italic;
+      color: #5f4233;
+      border-top: 1px dotted #b7a088;
+      padding-top: 10px;
+    }
+
+    body.insanity-5 .secret-note { color: #bd8a70; }
+
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 18px;
+      font-size: 0.85rem;
+    }
+
+    .footer-actions button {
+      background: none;
+      border: none;
+      color: #6e5b4a;
+      text-decoration: underline;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 6px;
+    }
+
+    body.insanity-5 .footer-actions button { color: #b78f76; }
+
+    .hint-whisper {
+      opacity: 0.6;
+      font-size: 0.8rem;
+      margin-top: 14px;
+      text-align: right;
+    }
+
+    .glitch-text {
+      display: inline-block;
+    }
+
+    /* meta彩蛋 */
+    .meta-tip {
+      font-size: 0.7rem;
+      text-align: center;
+      margin-top: 24px;
+      opacity: 0.4;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body id="mainBody">
+<div class="museum-card">
+  <h1 class="glitch-text">🜁 维尔德博物馆 🜁</h1>
+  <div class="subhead">
+    <span>◈ 永恒珍藏 ◈</span>
+    <span id="insanityDisplay" class="glitch-text">⚲ 安定</span>
+  </div>
+
+  <!-- 失踪案简报，始终可见 -->
+  <div class="missing-alert" id="missingAlert">
+    <strong>📰 特别通告 · 失踪案</strong><br>
+    <span id="missingText">2025年3月17日，馆长阿利斯泰尔·维尔德在“无光展厅”失踪。监控最后画面显示他反复低语「红月之下，门将开启」。警方呼吁知情者提供线索。</span>
+  </div>
+
+  <!-- 搜索区 -->
+  <div class="search-area">
+    <input type="text" id="searchInput" placeholder="搜索藏品、关键词…" autocomplete="off" autofocus>
+    <button id="searchBtn">⟳ 检索</button>
+  </div>
+
+  <!-- 诡异进度条 -->
+  <div class="insanity-meter">
+    <span class="meter-label">异象浓度</span>
+    <div class="meter-bar">
+      <div class="meter-fill" id="insanityFill" style="width:0%"></div>
+    </div>
+    <span id="insanityPercent">0%</span>
+  </div>
+
+  <!-- 结果显示区 -->
+  <div class="result-card" id="resultCard">
+    <div class="result-title" id="resultTitle">🖼️ 欢迎</div>
+    <div class="result-desc" id="resultDesc">
+      维尔德博物馆线上目录。请使用上方搜索框查阅馆藏。<br>
+      近期因案件部分展厅关闭，但数据库依然开放。<br><br>
+      <i>“每一件藏品都是一把钥匙……”</i>
+    </div>
+    <div id="secretExtra" class="secret-note"></div>
+  </div>
+
+  <!-- 底部操作 -->
+  <div class="footer-actions">
+    <button id="resetBtn">⟲ 重启调查</button>
+    <span style="flex:1"></span>
+    <span id="metaHint" class="hint-whisper"></span>
+  </div>
+  <div class="meta-tip" id="metaMessage">—— 注视深渊时，深渊也在注视你 ——</div>
+</div>
+
+<script>
+  (function(){
+    "use strict";
+
+    // ---------- 游戏状态 ----------
+    let insanityLevel = 0;                // 0 ~ 10
+    const MAX_INSANITY = 10;
+    
+    // 已触发过insight的藏品ID (避免重复增加进度)
+    const triggeredSecrets = new Set();
+    
+    // 特殊结局标记
+    let finalUnlocked = false;
+    let endingTriggered = false;
+
+    // ---------- DOM 元素 ----------
+    const bodyEl = document.getElementById('mainBody');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    const resultTitle = document.getElementById('resultTitle');
+    const resultDesc = document.getElementById('resultDesc');
+    const secretExtra = document.getElementById('secretExtra');
+    const missingTextSpan = document.getElementById('missingText');
+    
+    const insanityFill = document.getElementById('insanityFill');
+    const insanityPercent = document.getElementById('insanityPercent');
+    const insanityDisplay = document.getElementById('insanityDisplay');
+    const metaHint = document.getElementById('metaHint');
+    const metaMessage = document.getElementById('metaMessage');
+
+    // ---------- 藏品数据库 (含关键词、秘密、进度等) ----------
+    const collection = [
+      // 0 : 馆长相关 (普通但重要)
+      { id: 'curator', 
+        keywords: ['瓦伦', '维尔德', '馆长', '阿利斯泰尔', 'alistair', 'wilde', '失踪'],
+        title: '阿利斯泰尔·维尔德 (馆长肖像)',
+        desc: '维尔德博士，考古学家与神秘学研究者。他坚信某些文物是“门”。失踪前他频繁查阅《红月抄本》。',
+        secret: false,
+        insightTrigger: false,
+        extra: ''
+      },
+      // 1 : 失踪案本身
+      { id: 'missingcase',
+        keywords: ['失踪案', '案件', '通告', '无光展厅', '监控'],
+        title: '案件编号 V-0317',
+        desc: '警方报告：馆长最后出现在“无光展厅”，现场发现不属于任何已知文明的刻痕。文字意为“她在镜中微笑”。',
+        secret: true,
+        insightTrigger: true,
+        extra: '你感到一阵寒意。似乎有什么在看着你。'
+      },
+      // 2 : 红月抄本
+      { id: 'redmoon',
+        keywords: ['红月', '抄本', '红月抄本', ' crimson', '月亮'],
+        title: '《红月抄本》残页',
+        desc: '以人皮装订的抄本。记载：“当赤月凌空，献上五重印记，真实将剥落。” 其中一页写着“第一个印记：低语者的名字”。',
+        secret: true,
+        insightTrigger: true,
+        extra: '🔴 第一个印记线索：低语者的名字…… 是谁在低语？'
+      },
+      // 3 : 低语者雕像
+      { id: 'whisperer',
+        keywords: ['低语者', '雕像', 'whisper', '低语', '呢喃'],
+        title: '“低语者”石像',
+        desc: '一尊无嘴的石像，但靠近时能听到细语。基座刻着「艾尔-夏库尔」。许多员工声称梦见它。',
+        secret: true,
+        insightTrigger: true,
+        extra: '🔴 印记之二：艾尔-夏库尔。你需要第二个名字。'
+      },
+      // 4 : 哭泣男孩画作
+      { id: 'cryingboy',
+        keywords: ['哭泣男孩', '画', '男孩', '肖像', 'crying'],
+        title: '《哭泣男孩》· 佚名',
+        desc: '画中男孩的眼睛会随观看者移动。背面有铅笔字：「萨米尔看见真相」。',
+        secret: true,
+        insightTrigger: true,
+        extra: '🔴 印记之三：萨米尔。'
+      },
+      // 5 : 镜中女士
+      { id: 'mirrorlady',
+        keywords: ['镜子', '镜', '女士', '镜中', '微笑'],
+        title: '维多利亚式立镜',
+        desc: '镜面时常映出一名微笑的黑衣女子，但身后空无一人。标签写着「莉迪亚·克罗」。',
+        secret: true,
+        insightTrigger: true,
+        extra: '🔴 印记之四：莉迪亚·克罗。'
+      },
+      // 6 : 虚空之眼
+      { id: 'voideye',
+        keywords: ['虚空之眼', '虚空', '眼睛', '雕像', '深渊'],
+        title: '虚空之眼 · 黑曜石雕像',
+        desc: '一颗紧闭的眼睛。传说凝视它超过十秒会看到“门”。馆长失踪前最后的研究对象。',
+        secret: true,
+        insightTrigger: true,
+        extra: '🔴 印记之五：它没有名字，只有称呼——“守望者”。'
+      },
+      // 7 : 守望者 (特殊，可触发结局进程)
+      { id: 'watcher',
+        keywords: ['守望者', 'watcher', '门', '开启'],
+        title: '❚ 守 望 者 ❚',
+        desc: '你无法移开视线。它告诉你：「献上五印，呼唤吾名，真实将崩解。」',
+        secret: true,
+        insightTrigger: true,
+        extra: '你已经接近真相……但代价是什么？'
+      },
+      // 8 : 普通展品——古钱币
+      { id: 'coin',
+        keywords: ['钱币', '金币', '古币', '货币'],
+        title: '拜占庭金币',
+        desc: '公元11世纪金币，保存完好。无特殊之处。',
+        secret: false,
+      },
+      // 9 : 普通——陶罐
+      { id: 'pottery',
+        keywords: ['陶罐', '希腊', '双耳瓶'],
+        title: '希腊黑绘陶瓶',
+        desc: '描绘英雄与怪兽的战斗。艺术价值很高。',
+        secret: false,
+      },
+      // 10 : 隐藏词条：帮助/命令
+      { id: 'help',
+        keywords: ['help', '帮助', '?', '？', '命令'],
+        title: '📜 检索帮助',
+        desc: '你可以搜索：馆长、红月、低语者、哭泣男孩、镜子、虚空之眼、守望者……以及其他普通藏品。某些词汇会改变氛围。',
+        secret: false,
+      },
+      // 11 : 结局触发器——当insanity足够高，搜索“真实”“崩解”等
+      { id: 'finaltruth',
+        keywords: ['真实', '崩解', '献祭', '五印', '艾尔-夏库尔', '萨米尔', '莉迪亚', '守望者'],
+        title: '⚷ 门已半启 ⚷',
+        desc: '五个印记正在共鸣。如果你准备好了，请呼唤「开启真实」。',
+        secret: true,
+        insightTrigger: false,  // 不额外加进度，但用于结局分支
+      }
+    ];
+
+    // 辅助函数：根据关键词查找藏品 (返回第一个匹配，优先秘密？ 但按顺序)
+    function findItemByQuery(query) {
+      if (!query || query.trim() === '') return null;
+      const q = query.trim().toLowerCase();
+      
+      // 精确匹配某些特殊命令
+      if (q === '开启真实' || q === 'open truth' || q === '开门') {
+        return { special: 'finale' };
+      }
+      
+      for (let item of collection) {
+        if (!item.keywords) continue;
+        for (let kw of item.keywords) {
+          if (kw.toLowerCase().includes(q) || q.includes(kw.toLowerCase())) {
+            return item;
+          }
+        }
+      }
+      // 如果没有直接匹配，检查是否包含“印记”相关
+      if (q.includes('印记') || q.includes('低语') || q.includes('艾尔')) {
+        return collection.find(i => i.id === 'whisperer') || null;
+      }
+      return null;
+    }
+
+    // 处理进度增加
+    function addInsight(item) {
+      if (!item) return;
+      // 只有标记为 insightTrigger 且未被触发过
+      if (item.insightTrigger && !triggeredSecrets.has(item.id)) {
+        triggeredSecrets.add(item.id);
+        if (insanityLevel < MAX_INSANITY) {
+          insanityLevel = Math.min(insanityLevel + 1, MAX_INSANITY);
+        }
+        updateInsanityUI();
+        
+        // 特殊：当insanity到达一定程度，改变一些文本
+        if (insanityLevel >= 7) {
+          missingTextSpan.innerText = '他们找到了馆长的日记……最后一页写着：“不要相信博物馆。它正在吃掉我。它也会吃掉你。”';
+        }
+        if (insanityLevel >= 9) {
+          metaMessage.innerText = '—— 你已经无法离开了 ——';
+        }
+      }
+      
+      // 如果进度满，并触发了守望者等，解锁结局提示
+      if (insanityLevel >= 8 && triggeredSecrets.has('watcher') && triggeredSecrets.has('redmoon') && triggeredSecrets.has('whisperer') 
+          && triggeredSecrets.has('cryingboy') && triggeredSecrets.has('mirrorlady')) {
+        finalUnlocked = true;
+      }
+    }
+
+    // 更新诡异视觉效果
+    function updateInsanityUI() {
+      // 移除所有insanity类
+      for (let i = 0; i <= 10; i++) {
+        bodyEl.classList.remove(`insanity-${i}`);
+      }
+      const level = Math.min(insanityLevel, 10);
+      if (level > 0) bodyEl.classList.add(`insanity-${level}`);
+      
+      const percent = (insanityLevel / MAX_INSANITY) * 100;
+      insanityFill.style.width = percent + '%';
+      insanityPercent.textContent = Math.round(percent) + '%';
+      
+      if (insanityLevel === 0) insanityDisplay.textContent = '⚲ 安定';
+      else if (insanityLevel < 3) insanityDisplay.textContent = '◈ 轻微扰动';
+      else if (insanityLevel < 5) insanityDisplay.textContent = '◈ 视线扭曲';
+      else if (insanityLevel < 7) insanityDisplay.textContent = '⚠ 低语蔓延';
+      else if (insanityLevel < 9) insanityDisplay.textContent = '⬧ 深渊回望';
+      else insanityDisplay.textContent = '☠ 真实崩坏';
+      
+      // meta 提示
+      if (insanityLevel >= 5) {
+        metaHint.textContent = '// 页面边界正在溶解 //';
+      } else {
+        metaHint.textContent = '';
+      }
+      
+      // 保存状态到 localStorage (可选)
+      saveProgress();
+    }
+
+    // 展示搜索结果
+    function displayResult(item, query) {
+      if (!item) {
+        // 无结果
+        resultTitle.textContent = '⚰️ 无匹配藏品';
+        resultDesc.textContent = `“${query}” 未收录于目录。或许它根本不存在……又或许藏在别处。`;
+        secretExtra.textContent = '';
+        return;
+      }
+      
+      // 特殊结局处理
+      if (item.special === 'finale') {
+        if (finalUnlocked || insanityLevel >= 9) {
+          // 真结局
+          resultTitle.textContent = '🚪 门 已 开 启 🚪';
+          resultDesc.textContent = '你念出了那不可言说的名字。博物馆开始剥落，露出其下的……虚无。维尔德馆长站在你面前，微笑着，但眼窝空洞。“你终于来了。欢迎回家。” 画面一黑。';
+          secretExtra.textContent = '— 游戏结束 · 你已跨越边界 —';
+          endingTriggered = true;
+          // 强制insanity满
+          insanityLevel = 10;
+          updateInsanityUI();
+          metaMessage.innerText = '—— 你已经成为了展品 ——';
+        } else {
+          resultTitle.textContent = '❌ 条件不足';
+          resultDesc.textContent = '你试图开门，但门纹丝不动。还需要更多……“印记”。';
+          secretExtra.textContent = '收集五重印记，再试一次。';
+        }
+        return;
+      }
+      
+      // 正常藏品
+      resultTitle.textContent = item.title || '未知藏品';
+      resultDesc.textContent = item.desc || '没有详细描述。';
+      
+      if (item.extra) {
+        secretExtra.textContent = item.extra;
+      } else {
+        secretExtra.textContent = '';
+      }
+      
+      // 增加进度 (如果触发)
+      addInsight(item);
+      
+      // 如果解锁了结局条件，显示额外提示
+      if (finalUnlocked && !endingTriggered) {
+        if (!secretExtra.textContent.includes('五印')) {
+          secretExtra.textContent += '  ⚡ 你感觉到“真实”就在嘴边。';
+        }
+      }
+      
+      // 极端诡异时，替换描述中的文字(meta)
+      if (insanityLevel >= 8 && item.id !== 'finaltruth') {
+        // 加一点故障效果
+        if (!resultTitle.classList.contains('glitch-text')) {
+          // 不重复加
+        }
+      }
+    }
+
+    // 搜索主逻辑
+    function performSearch() {
+      const query = searchInput.value;
+      const item = findItemByQuery(query);
+      displayResult(item, query);
+      
+      // 额外meta：如果搜索某些词，控制台输出
+      if (query.toLowerCase().includes('help')) {
+        console.log('%c🧬 维尔德博物馆 · 开发者模式', 'font-size:16px; color: #b98c6b');
+        console.log('%c你可以尝试: 红月, 低语者, 哭泣男孩, 镜子, 虚空之眼, 守望者', 'color: #9f7e65');
+      }
+      if (insanityLevel > 6) {
+        console.log('%c⚠ 警告: 异象浓度 ' + insanityLevel + '/10', 'background: #300; color: #c99');
+      }
+    }
+
+    // 重置游戏
+    function resetGame() {
+      insanityLevel = 0;
+      triggeredSecrets.clear();
+      finalUnlocked = false;
+      endingTriggered = false;
+      
+      updateInsanityUI();
+      // 恢复默认文本
+      missingTextSpan.innerText = '2025年3月17日，馆长阿利斯泰尔·维尔德在“无光展厅”失踪。监控最后画面显示他反复低语「红月之下，门将开启」。警方呼吁知情者提供线索。';
+      metaMessage.innerText = '—— 注视深渊时，深渊也在注视你 ——';
+      
+      // 重置结果显示欢迎
+      resultTitle.textContent = '🖼️ 欢迎';
+      resultDesc.textContent = '维尔德博物馆线上目录。请使用上方搜索框查阅馆藏。\n近期因案件部分展厅关闭，但数据库依然开放。\n\n“每一件藏品都是一把钥匙……”';
+      secretExtra.textContent = '';
+      
+      searchInput.value = '';
+      // 清除存储
+      localStorage.removeItem('wildeMuseumSave');
+      
+      // 移除所有诡异类
+      for (let i=0;i<=10;i++) bodyEl.classList.remove(`insanity-${i}`);
+    }
+
+    // 保存/加载 (简易)
+    function saveProgress() {
+      const state = {
+        insanity: insanityLevel,
+        secrets: Array.from(triggeredSecrets),
+        final: finalUnlocked,
+        ending: endingTriggered
+      };
+      localStorage.setItem('wildeMuseumSave', JSON.stringify(state));
+    }
+    
+    function loadProgress() {
+      const saved = localStorage.getItem('wildeMuseumSave');
+      if (!saved) return;
+      try {
+        const state = JSON.parse(saved);
+        insanityLevel = state.insanity || 0;
+        triggeredSecrets.clear();
+        (state.secrets || []).forEach(id => triggeredSecrets.add(id));
+        finalUnlocked = state.final || false;
+        endingTriggered = state.ending || false;
+        
+        updateInsanityUI();
+        // 如果已经结局，显示提示
+        if (endingTriggered) {
+          resultTitle.textContent = '🚪 门已开启 (结局)';
+          resultDesc.textContent = '你已经完成旅程。重置以重新开始。';
+        } else {
+          // 显示默认
+        }
+        // 恢复失踪文本
+        if (insanityLevel >= 7) {
+          missingTextSpan.innerText = '他们找到了馆长的日记……最后一页写着：“不要相信博物馆。它正在吃掉我。它也会吃掉你。”';
+        }
+      } catch (e) {}
+    }
+
+    // 初始化事件
+    function init() {
+      loadProgress();
+      
+      searchBtn.addEventListener('click', performSearch);
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch();
+      });
+      
+      resetBtn.addEventListener('click', () => {
+        resetGame();
+      });
+      
+      // 首次加载时若没有进度，显示默认
+      if (insanityLevel === 0) {
+        // 确保显示正常
+      }
+      
+      // meta: 输入特殊指令
+      window.addEventListener('load', ()=>{
+        console.log('%c🔎 维尔德博物馆 · ARG 元游戏', 'font-size:18px; font-weight:bold; color: #b87c5a');
+        console.log('%c失踪案只是开始…… 寻找五个印记。', 'color: #a56b4a');
+      });
+    }
+
+    init();
+  })();
+</script>
+</body>
+</html>
